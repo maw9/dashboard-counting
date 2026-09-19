@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Update package information
+apt update -y
+
+# Install unzip
+apt install -y unzip
+
+# Create dedicated user
+useradd -m dashboard-admin
+
+# Create application directory
+mkdir -p /opt/dashboard
+
+# Move into application directory
+cd /opt/dashboard
+
+# Download dashboard service
+wget https://github.com/hashicorp/demo-consul-101/releases/download/v0.0.5/dashboard-service_linux_amd64.zip
+
+# Unzip
+unzip dashboard-service_linux_amd64.zip
+
+# Rename executable
+mv dashboard-service_linux_amd64 dashboard-service
+
+# Remove ZIP file
+rm dashboard-service_linux_amd64.zip
+
+# Make executable
+chmod +x dashboard-service
+
+# Give ownership to dedicated user
+chown -R dashboard-admin:dashboard-admin /opt/dashboard
+
+# Create systemd service
+cat > /etc/systemd/system/dashboard.service <<'EOF'
+[Unit]
+Description=Dashboard Service
+After=network.target
+
+[Service]
+Type=simple
+User=dashboard-admin
+Group=dashboard-admin
+WorkingDirectory=/opt/dashboard
+Environment="PORT=8080"
+Environment="COUNTING_SERVICE_URL=${counting_service_url}"
+ExecStart=/opt/dashboard/dashboard-service
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Tell systemd about the new service
+systemctl daemon-reload
+
+# Enable dashboard to start automatically at boot
+systemctl enable dashboard
+
+# Start dashboard now
+systemctl start dashboard

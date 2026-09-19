@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# Update package information
+apt update -y
+
+# Install unzip
+apt install -y unzip
+
+# Create dedicated user
+useradd -m counting-admin
+
+# Create application directory
+mkdir -p /opt/counting
+
+# Move into application directory
+cd /opt/counting
+
+# Download counting service
+wget https://github.com/hashicorp/demo-consul-101/releases/download/v0.0.5/counting-service_linux_amd64.zip
+
+# Unzip
+unzip counting-service_linux_amd64.zip
+
+# Rename executable
+mv counting-service_linux_amd64 counting-service
+
+# Remove ZIP file
+rm counting-service_linux_amd64.zip
+
+# Make executable
+chmod +x counting-service
+
+# Give ownership to dedicated user
+chown -R counting-admin:counting-admin /opt/counting
+
+# Create systemd service
+cat > /etc/systemd/system/counting.service <<'EOF'
+
+[Unit]
+Description=Counting Service
+After=network.target
+
+[Service]
+Type=simple
+User=counting-admin
+Group=counting-admin
+WorkingDirectory=/opt/counting
+Environment="PORT=8090"
+ExecStart=/opt/counting/counting-service
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+EOF
+
+# Tell systemd about the new service
+systemctl daemon-reload
+
+# Enable counting service to start automatically at boot
+systemctl enable counting
+
+# Start counting service now
+systemctl start counting
